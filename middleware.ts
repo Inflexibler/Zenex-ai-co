@@ -5,7 +5,6 @@ export const config = {
   matcher: [
     '/((?!_next/static|_next/image|favicon.ico|api|public).*)',
   ],
-  runtime: 'edge',
 };
 
 const GITHUB_OWNER = process.env.GITHUB_OWNER || 'Inflexibler';
@@ -72,18 +71,21 @@ async function handlePublicSiteRequest(
     ? 'index.html' 
     : pathname.split('/').pop() || 'index.html';
 
-  // ✅ FIXED: Use jsDelivr CDN (not raw.githubusercontent)
+  // Use jsDelivr CDN
   const cdnUrl = `https://cdn.jsdelivr.net/gh/${GITHUB_OWNER}/${GITHUB_REPO}@main/users/${userId}/${projectId}/${filePath}`;
 
   try {
+    // Create timeout controller
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+
     // Fetch from GitHub CDN
     const response = await fetch(cdnUrl, {
       headers: {
         'User-Agent': 'ZENEX-AI-Bot',
       },
-      // ✅ FIXED: Add timeout protection
-      signal: AbortSignal.timeout(5000),
-    });
+      signal: controller.signal,
+    }).finally(() => clearTimeout(timeoutId));
 
     if (!response.ok) {
       return new NextResponse('Site not found', { status: 404 });
